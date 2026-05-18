@@ -22,6 +22,39 @@ CUHK-PEDES/
   reid_raw.json
 ```
 
+## Environment
+
+Create an isolated conda environment on AutoDL before training:
+
+```bash
+conda create -n irra_ham python=3.8 -y
+conda activate irra_ham
+```
+
+Install PyTorch according to the CUDA version on your AutoDL image. For a common
+CUDA 11.8 image:
+
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+```
+
+Install the remaining IRRA dependencies:
+
+```bash
+pip install easydict prettytable tensorboard ftfy regex tqdm pillow numpy scipy scikit-learn opencv-python
+```
+
+Verify CUDA and the required Python packages:
+
+```bash
+python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+python -c "import easydict, prettytable, tensorboard, ftfy; print('deps ok')"
+```
+
+If your AutoDL image already has a working PyTorch environment, you can keep it
+and only install the missing packages. The dedicated `irra_ham` environment is
+recommended for repeatable runs.
+
 ## Smoke Run
 
 Run one epoch first to verify CUDA, dataset paths, HAM checkpoint loading, logs,

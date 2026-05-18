@@ -3,6 +3,13 @@
 
 Official PyTorch implementation of the paper Cross-Modal Implicit Relation Reasoning and Aligning for Text-to-Image Person Retrieval. (CVPR 2023) [arXiv](https://arxiv.org/abs/2303.12501)
 
+## HAM Pretrain on AutoDL
+
+This fork supports initializing IRRA with a local HAM ReID pretrained checkpoint
+for CUHK-PEDES fine-tuning. See [README_autodl_ham.md](README_autodl_ham.md)
+for the AutoDL conda environment, dataset/checkpoint paths, smoke run, full
+training, and resume commands.
+
 ## Updates
 - (3/23/2023) Add arXiv link for our paper.
 - (3/18/2023) Add download links of trained models and logs.
