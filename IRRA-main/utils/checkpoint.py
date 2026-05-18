@@ -212,7 +212,10 @@ def load_ham_pretrained(model, ckpt_path, logger=None):
         raise FileNotFoundError("HAM pretrained checkpoint not found: {}".format(ckpt_path))
 
     logger.info("Loading HAM pretrained checkpoint from {}".format(ckpt_path))
-    checkpoint = torch.load(ckpt_path, map_location=torch.device("cpu"))
+    try:
+        checkpoint = torch.load(ckpt_path, map_location=torch.device("cpu"), weights_only=True)
+    except TypeError:
+        checkpoint = torch.load(ckpt_path, map_location=torch.device("cpu"))
     loaded_state_dict = _unwrap_checkpoint_state_dict(checkpoint)
 
     model_state_dict = model.state_dict()

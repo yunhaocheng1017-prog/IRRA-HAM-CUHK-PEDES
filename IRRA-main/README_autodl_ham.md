@@ -1,129 +1,129 @@
-# AutoDL HAM Pretrain Finetune Guide
+# AutoDL 使用说明：IRRA 加载 HAM 预训练并训练 CUHK-PEDES
 
-This guide runs IRRA on CUHK-PEDES initialized from the HAM ReID pretrained
-checkpoint. HAM code is not imported at runtime; only its `.pth` checkpoint is
-loaded into the IRRA model.
+本文档用于在 AutoDL 云服务器上运行 IRRA，并从本地 HAM ReID 预训练权重初始化模型。
 
-## Paths
+当前方案只修改和运行 IRRA 项目；HAM 项目不参与运行时导入，只需要提供 `.pth` 权重文件。
 
-Use the following AutoDL layout:
+## 1. 推荐目录结构
 
-```text
-/root/autodl-tmp/IRRA
+建议在 AutoDL 上按下面方式放置项目、数据集和权重：
+
+```bash
+/root/autodl-tmp/IRRA-HAM-CUHK-PEDES/IRRA-main
 /root/autodl-tmp/datasets/CUHK-PEDES
 /root/autodl-tmp/checkpoints/ham.pth
 ```
 
-CUHK-PEDES must contain:
+CUHK-PEDES 数据集目录需要包含：
 
-```text
+```bash
 CUHK-PEDES/
   imgs/
   reid_raw.json
 ```
 
-## Environment
+注意：不要把 `.pth` 或 `.pt` 这类大权重文件上传到 GitHub。HAM 权重放在 AutoDL 本地磁盘即可，运行时通过 `--ham-pretrain` 或脚本里的 `HAM_PRETRAIN` 指定。
 
-Create an isolated conda environment on AutoDL before training:
+## 2. 配置运行环境
+
+在 AutoDL 上创建独立 conda 环境：
 
 ```bash
 conda create -n irra_ham python=3.8 -y
 conda activate irra_ham
 ```
 
-Install PyTorch according to the CUDA version on your AutoDL image. For a common
-CUDA 11.8 image:
+根据 AutoDL 镜像的 CUDA 版本安装 PyTorch。常见 CUDA 11.8 镜像可以使用：
 
 ```bash
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 ```
 
-Install the remaining IRRA dependencies:
+安装 IRRA 需要的其他依赖：
 
 ```bash
 pip install easydict prettytable tensorboard ftfy regex tqdm pillow numpy scipy scikit-learn opencv-python
 ```
 
-Verify CUDA and the required Python packages:
+检查环境是否正常：
 
 ```bash
 python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 python -c "import easydict, prettytable, tensorboard, ftfy; print('deps ok')"
 ```
 
-If your AutoDL image already has a working PyTorch environment, you can keep it
-and only install the missing packages. The dedicated `irra_ham` environment is
-recommended for repeatable runs.
+如果第一条输出里的 `torch.cuda.is_available()` 是 `True`，说明 CUDA 可用。
 
-## Smoke Run
+## 3. 首轮跑通测试
 
-Run one epoch first to verify CUDA, dataset paths, HAM checkpoint loading, logs,
-and checkpoint saving.
+先跑 1 个 epoch，用来确认 CUDA、数据路径、HAM 权重加载、日志、checkpoint 保存和验证流程都正常：
 
 ```bash
-cd /root/autodl-tmp/IRRA
+cd /root/autodl-tmp/IRRA-HAM-CUHK-PEDES/IRRA-main
 
-CUDA_VISIBLE_DEVICES=0 python train.py \
-  --name irra_ham_smoke \
-  --root_dir /root/autodl-tmp/datasets \
-  --output_dir logs/cuhk_pedes_ham \
-  --ham_pretrain /root/autodl-tmp/checkpoints/ham.pth \
-  --dataset_name CUHK-PEDES \
-  --loss_names 'sdm+mlm+id' \
-  --MLM \
-  --img_aug \
-  --batch_size 128 \
-  --lr 5e-6 \
-  --num_epoch 1
-```
-
-The log should include dataset statistics, `HAM pretrained summary`, epoch loss
-messages, and `Saving checkpoint to ... latest.pth`.
-
-## Full Training
-
-HAM recommends fine-tuning IRRA with batch size 128, one GPU, 60 epochs, and
-learning rate `5e-6`.
-
-```bash
-cd /root/autodl-tmp/IRRA
-
-CUDA_VISIBLE_DEVICES=0 python train.py \
-  --name irra_ham \
-  --root_dir /root/autodl-tmp/datasets \
-  --output_dir logs/cuhk_pedes_ham \
-  --ham_pretrain /root/autodl-tmp/checkpoints/ham.pth \
-  --dataset_name CUHK-PEDES \
-  --loss_names 'sdm+mlm+id' \
-  --MLM \
-  --img_aug \
-  --batch_size 128 \
-  --lr 5e-6 \
-  --num_epoch 60
-```
-
-You can run the bundled script with the same defaults:
-
-```bash
-cd /root/autodl-tmp/IRRA
+ROOT_DIR=/root/autodl-tmp/datasets \
+HAM_PRETRAIN=/root/autodl-tmp/checkpoints/ham.pth \
+OUTPUT_DIR=logs/cuhk_pedes_ham \
+NUM_EPOCH=1 \
+BATCH_SIZE=128 \
+LR=5e-6 \
 bash run_irra.sh
 ```
 
-For a one-epoch smoke run with the script:
+如果 HAM 权重加载成功，日志里应该出现类似内容，并且 `loaded` 数量大于 0：
 
-```bash
-NUM_EPOCH=1 bash run_irra.sh
+```text
+Loading HAM pretrained checkpoint from /root/autodl-tmp/checkpoints/ham.pth
+HAM pretrained summary: loaded=..., skipped=..., missing=..., unexpected=...
 ```
 
-## Resume
+如果第 1 个 epoch 完成后能看到 `Validation Results - Epoch: 1` 和 R1/R5/R10/mAP 等指标，说明训练和验证流程已经跑通。
 
-Each epoch writes `latest.pth`; the best validation Rank-1 checkpoint is saved
-as `best.pth`.
+## 4. 完整训练
+
+首轮测试通过后，按 60 epoch 完整训练：
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python train.py \
-  --resume \
-  --resume_ckpt_file logs/cuhk_pedes_ham/CUHK-PEDES/<run_name>/latest.pth \
+cd /root/autodl-tmp/IRRA-HAM-CUHK-PEDES/IRRA-main
+
+ROOT_DIR=/root/autodl-tmp/datasets \
+HAM_PRETRAIN=/root/autodl-tmp/checkpoints/ham.pth \
+OUTPUT_DIR=logs/cuhk_pedes_ham \
+NUM_EPOCH=60 \
+BATCH_SIZE=128 \
+LR=5e-6 \
+bash run_irra.sh
+```
+
+训练输出会保存在：
+
+```bash
+logs/cuhk_pedes_ham/CUHK-PEDES/<时间戳>_irra_ham/
+```
+
+主要产物包括：
+
+```bash
+latest.pth
+best.pth
+configs.yaml
+events.out.tfevents.*
+log.txt
+```
+
+其中：
+
+- `latest.pth`：每个 epoch 结束后保存，用于中断后续训。
+- `best.pth`：验证集 Rank@1 最好时保存。
+- `log.txt`：完整训练日志。
+- `configs.yaml`：本次训练参数记录。
+
+## 5. 中断后续训
+
+如果 AutoDL 断开或训练中断，可以从 `latest.pth` 继续：
+
+```bash
+python train.py \
   --name irra_ham_resume \
   --root_dir /root/autodl-tmp/datasets \
   --output_dir logs/cuhk_pedes_ham \
@@ -133,19 +133,17 @@ CUDA_VISIBLE_DEVICES=0 python train.py \
   --img_aug \
   --batch_size 128 \
   --lr 5e-6 \
-  --num_epoch 60
+  --num_epoch 60 \
+  --resume \
+  --resume_ckpt_file /path/to/latest.pth
 ```
 
-When resuming, the IRRA checkpoint already contains model weights, optimizer,
-and scheduler state. You do not need to pass `--ham_pretrain` again.
+使用 `--resume` 时，checkpoint 里已经包含模型、优化器和学习率调度器状态，会覆盖模型初始化状态。因此续训时一般不需要再传 `--ham-pretrain`。
 
-## Troubleshooting
+## 6. 常见问题
 
-- If `HAM pretrained summary` shows `loaded=0`, the HAM checkpoint keys do not
-  match this IRRA model. Check whether the checkpoint is the HAM ReID pretrain
-  model rather than the LLaVA captioner checkpoint.
-- If CUHK-PEDES is not found, check that `--root_dir` points to the parent
-  directory containing `CUHK-PEDES`, not the dataset directory itself.
-- If CUDA OOM happens on a 24GB card, retry with `--batch_size 64`. If needed,
-  keep the run stable first and then tune batch size upward.
-- If training is interrupted, resume from the generated `latest.pth`.
+- `HAM pretrained summary: loaded=0`：说明 HAM checkpoint 的 key 或模型结构和当前 IRRA 不匹配。先检查日志里 `HAM loaded` / `HAM skipped` 的 key 示例。
+- CUHK-PEDES 找不到：`--root_dir` 应该指向包含 `CUHK-PEDES` 的父目录，例如 `/root/autodl-tmp/datasets`，不是 `/root/autodl-tmp/datasets/CUHK-PEDES`。
+- 24GB 单卡显存不足：先把 `BATCH_SIZE=128` 改成 `BATCH_SIZE=64`；如果还 OOM，再改成 `BATCH_SIZE=32`。
+- Windows PowerShell 不能运行 `npm` 或 `codex`：使用 `npm.cmd` 和 `codex.cmd`。
+- GitHub 不要上传大权重文件：HAM 权重放在 AutoDL 本地，例如 `/root/autodl-tmp/checkpoints/ham.pth`。
