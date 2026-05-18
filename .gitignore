@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Environments and local IDE files
+.env
+.venv/
+venv/
+.idea/
+.vscode/
+
+# Training outputs
+logs/
+checkpoints/
+runs/
+outputs/
+*.pth
+*.pt
+*.ckpt
+
+# Large/local datasets
+IRRA-main/data/CUHK-PEDES/
+IRRA-main/data/ICFG-PEDES/
+IRRA-main/data/RSTPReid/
+HAM-main/PLIP_data/
+HAM-main/HAM_data/
+HAM-main/checkpoint/
+
+# OS files
+.DS_Store
+Thumbs.db
